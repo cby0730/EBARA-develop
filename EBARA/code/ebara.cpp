@@ -86,7 +86,7 @@ void LocusSimulation(Locus_coordinate& locus_coordinate, Diamonds_coordinate& di
 	auto end_time = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-	std::cout << "Time taken by the LocusSimulation: " << duration.count() << " milliseconds" << std::endl;
+	//std::cout << "Time taken by the LocusSimulation: " << duration.count() << " milliseconds" << std::endl;
 
 }
 void show_locus(Locus_coordinate& locus_coordinate, Image_setup image_setup, int pad_speed, const std::string& save_path)
@@ -632,7 +632,7 @@ void get_all_line_coordinate(Locus_coordinate locus_coordinate, Image_setup imag
 	}
 	for (int i = 0; i < image_setup.diamond_size; i++)
 	{
-		printf("  total=%d ,now=%d , percent = %f \r", image_setup.diamond_size, i, i * 100 / float(image_setup.diamond_size));
+		// printf("  total=%d ,now=%d , percent = %f \r", image_setup.diamond_size, i, i * 100 / float(image_setup.diamond_size));
 
 		for (int j = 0; j < locus_coordinate.x[0].size() - 1; j++)
 		{
@@ -652,7 +652,7 @@ void get_all_line_coordinate(Locus_coordinate locus_coordinate, Image_setup imag
 	auto end_time = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-	std::cout << "Time taken by the get_all_line_coordinate: " << duration.count() << " milliseconds" << std::endl;
+	// std::cout << "Time taken by the get_all_line_coordinate: " << duration.count() << " milliseconds" << std::endl;
 
 }
 // 計算元素總數並返回 int
@@ -701,7 +701,7 @@ PixelLineSegments convert_array4d_to_pixelData(const std::vector<std::vector<dou
     int size_index = 0, i = 0, j = 0;
     for (i = 0; i < SIZE; ++i) {
 
-		printf("  total=%d ,now=%d , percent = %f \r", SIZE, i, float(i * 100 / SIZE));
+		// printf("  total=%d ,now=%d , percent = %f \r", SIZE, i, float(i * 100 / SIZE));
 
         for (j = 0; j < SIZE; ++j) {
 
@@ -718,9 +718,9 @@ PixelLineSegments convert_array4d_to_pixelData(const std::vector<std::vector<dou
     }
     
 	// check if the conversion is successful
-	std::cout << "Conversion: " 
+	/*std::cout << "Conversion: " 
 		<< (validate_conversion(line_coordinate, pixelData) ? "Successed, there is no different between two array" : "Failed, there is different between two array") 
-		<< std::endl;
+		<< std::endl;*/
 
     return pixelData;
 }
@@ -729,7 +729,7 @@ void trajectory_distance(const int start, const int end, const PixelLineSegments
 	
 	for (int i = start; i < end; ++i) {
 
-		printf("  total=%d ,now=%d , percent = %f \r", SIZE, i, float(i * 100 / SIZE));
+		// printf("  total=%d ,now=%d , percent = %f \r", SIZE, i, float(i * 100 / SIZE));
 
 		for (int j = 0; j < SIZE; ++j) {
 
@@ -772,7 +772,7 @@ void multi_thread_trajectory_distance(const PixelLineSegments& pixelData, PAP_di
 	auto end_time = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-	std::cout << "Time taken by the multi-thread trajectory distance: " << duration.count() << " milliseconds" << std::endl;
+	// std::cout << "Time taken by the multi-thread trajectory distance: " << duration.count() << " milliseconds" << std::endl;
 
 }
 
@@ -904,7 +904,7 @@ void multi_thread_intersection_and_angle(const PixelLineSegments& pixelData, PAP
 	auto end_time = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-	std::cout << "Time taken by the multi-thread intersection and angle: " << duration.count() << " milliseconds" << std::endl;
+	// std::cout << "Time taken by the multi-thread intersection and angle: " << duration.count() << " milliseconds" << std::endl;
 
 }
 
