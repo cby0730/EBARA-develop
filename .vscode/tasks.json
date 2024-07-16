@@ -1,0 +1,32 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "C/C++: g++-12 建置使用中檔案",
+            "command": "/usr/bin/g++-12",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g",
+                "/root/Work/ebara/EBARA/code/main.cpp",
+                "/root/Work/ebara/EBARA/code/ebara.cpp",
+                "/root/Work/ebara/EBARA/code/utils.cpp",
+                "/root/Work/ebara/EBARA/code/object.cpp",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}",
+                "`pkg-config","--libs","--cflags","opencv4`" // Opencv
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "偵錯工具產生的工作。"
+        }
+    ],
+    "version": "2.0.0"
+}
