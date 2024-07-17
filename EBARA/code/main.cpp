@@ -91,7 +91,7 @@ void run_single_parameter_set(const std::vector<double>& param)
 
 void run(int mode, std::string csv_file_name)
 {
-	int MRR_mode = 2, num_processes = 22;
+	int MRR_mode = 2, num_processes = 60;
 	if (mode == 0)
 	{
 		// test new function or certain parameter
@@ -105,8 +105,8 @@ void run(int mode, std::string csv_file_name)
 		std::vector<std::string> file_names;
 		std::cout << "Run mode 2: for whole wafer" << std::endl;
 		std::vector<std::vector<double>> cmp_parameters{  //ps=pad speed,ds=dresser speed,dms=dresser moving speed,cycle
-			//{60, 60, 10, 2},
-			//{20,0,10,2},{20,10,10,2},{20,20,10,2},{20,30,10,2},{20,40,10,2},{20,50,10,2},{20,60,10,2},{20,70,10,2},{20,80,10,2},{20,90,10,2},{20,100,10,2},
+			//{30, 60, 10, 2},
+			{20,0,10,2},{20,10,10,2},{20,20,10,2},{20,30,10,2},{20,40,10,2},{20,50,10,2},{20,60,10,2},{20,70,10,2},{20,80,10,2},{20,90,10,2},{20,100,10,2},
 			{30,0,10,2},{30,10,10,2},{30,20,10,2},{30,30,10,2},{30,40,10,2},{30,50,10,2},{30,60,10,2},{30,70,10,2},{30,80,10,2},{30,90,10,2},{30,100,10,2},
 			{40,0,10,2},{40,10,10,2},{40,20,10,2},{40,30,10,2},{40,40,10,2},{40,50,10,2},{40,60,10,2},{40,70,10,2},{40,80,10,2},{40,90,10,2},{40,100,10,2},
 			{50,0,10,2},{50,10,10,2},{50,20,10,2},{50,30,10,2},{50,40,10,2},{50,50,10,2},{50,60,10,2},{50,70,10,2},{50,80,10,2},{50,90,10,2},{50,100,10,2},
@@ -195,6 +195,8 @@ int main()
 		wafer_points.Load_Diamond_Coordinates_Swingarm(File_Path.wafer_path);
 		wafer_points.Cart2Pol();
 	}
+
+	auto begin = std::chrono::high_resolution_clock::now();
 	
 	// 0 for test new function or certain parameter
 	// 1 for generate data for PAP distribution
@@ -203,6 +205,10 @@ int main()
 	int mode = 2; 
 	std::string csv_file_name = "test_time.csv";
 	run(mode, csv_file_name);
+
+	auto end = std::chrono::high_resolution_clock::now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+	std::cout << "Time taken by the whole process: " << elapsed.count() << " milliseconds" << std::endl;
 
 	return 0;
 
