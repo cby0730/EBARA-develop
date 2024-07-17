@@ -55,7 +55,7 @@ void resize_array(double input[375][375], double output[375][375], int picture_s
 void resize_array(int input[375][375], double output[375][375], int picture_size, int origin_size, int times);
 
 float distance(float x1, float y1, float x2, float y2);
-
+void clipLineSegment(double& x1, double& y1, double& x2, double& y2, double minX, double minY, double maxX, double maxY);
 
 
 #endif // !utils

@@ -49,13 +49,14 @@ void LocusSimulation(Locus_coordinate& locus_coordinate, Diamonds_coordinate& di
 	theta = diamonds_coordinate.theta;
 	wp = rpm2rad(machine_parameter.np);
 	wd = rpm2rad(machine_parameter.nd);
-	std::vector<double>tmpx(cycle_time * 100 * cycle), tmpy(cycle_time * 100 * cycle);
+	std::vector<double> tmpx, tmpy;
+	//std::vector<double>tmpx(cycle_time * 100 * cycle), tmpy(cycle_time * 100 * cycle);
 
 	// FIX: add reserve for std::vector
 	//tmpx.reserve(cycle_time * 100 * cycle);
 	//tmpy.reserve(cycle_time * 100 * cycle);
-	locus_coordinate.x.reserve(diamonds_coordinate.x.size());
-	locus_coordinate.y.reserve(diamonds_coordinate.x.size());
+	//locus_coordinate.x.reserve(diamonds_coordinate.x.size());
+	//locus_coordinate.y.reserve(diamonds_coordinate.x.size());
 
 	for (int i = 0; i < diamonds_coordinate.x.size(); i++)
 	{
@@ -638,13 +639,11 @@ void get_all_line_coordinate(Locus_coordinate locus_coordinate, Image_setup imag
 		{
 			double x1, y1, x2, y2;
 			x1 = (locus_coordinate.x[i][j] + row);//把座標位移到pixel座標左上角為(0,0)
-			if (x1 < 0) x1 = 0;
 			y1 = (-locus_coordinate.y[i][j] + col);
-			if (y1 < 0) y1 = 0;
 			x2 = (locus_coordinate.x[i][j + 1] + row);
-			if (x2 < 0) x2 = 0;
 			y2 = (-locus_coordinate.y[i][j + 1] + col);
-			if (y2 < 0) y2 = 0;
+			
+			clipLineSegment(x1, y1, x2, y2, 0, 0, SIZE - 1, SIZE - 1);
 			get_line_coordinate(x1, y1, x2, y2, line_coordinate);
 		}
 	}

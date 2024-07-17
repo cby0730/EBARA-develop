@@ -8,6 +8,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <algorithm>
 #include "utils.h"
 
 namespace fs = std::filesystem;
@@ -277,4 +278,44 @@ void resize_array(int input[375][375], double output[375][375], int picture_size
 
 	} // end for
 
+}
+
+void clipLineSegment(double& x1, double& y1, double& x2, double& y2, 
+                     double minX, double minY, double maxX, double maxY) {
+    // 計算斜率
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    
+    // 定義一個 lambda 函數來處理單個點的截斷
+    auto clipPoint = [&](double& x, double& y) {
+        // 處理 x < minX 的情況
+        if (x < minX) {
+            double t = (minX - x) / dx;
+            x = minX;
+            y = y + t * dy;
+        }
+        // 處理 x > maxX 的情況
+        else if (x > maxX) {
+            double t = (maxX - x) / dx;
+            x = maxX;
+            y = y + t * dy;
+        }
+        
+        // 處理 y < minY 的情況
+        if (y < minY) {
+            double t = (minY - y) / dy;
+            y = minY;
+            x = x + t * dx;
+        }
+        // 處理 y > maxY 的情況
+        else if (y > maxY) {
+            double t = (maxY - y) / dy;
+            y = maxY;
+            x = x + t * dx;
+        }
+    };
+    
+    // 對兩個端點應用截斷
+    clipPoint(x1, y1);
+    clipPoint(x2, y2);
 }
