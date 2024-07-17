@@ -279,7 +279,6 @@ void resize_array(int input[375][375], double output[375][375], int picture_size
 	} // end for
 
 }
-
 void clipLineSegment(double& x1, double& y1, double& x2, double& y2, 
                      double minX, double minY, double maxX, double maxY) {
     // 計算斜率
