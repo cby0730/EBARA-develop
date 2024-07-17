@@ -117,43 +117,40 @@ void run(int mode, std::string csv_file_name)
 			{100,0,10,2},{100,10,10,2},{100,20,10,2},{100,30,10,2},{100,40,10,2},{100,50,10,2},{100,60,10,2},{100,70,10,2},{100,80,10,2},{100,90,10,2},{100,100,10,2},
 		};
 
-		for (const auto& param : cmp_parameters) 
-		{
-			int total_tasks = cmp_parameters.size();
-			int completed_tasks = 0;
+		int total_tasks = cmp_parameters.size();
+		int completed_tasks = 0;
 
-			for (size_t i = 0; i < cmp_parameters.size(); i += num_processes) {
-				std::vector<pid_t> child_pids;
+		for (size_t i = 0; i < cmp_parameters.size(); i += num_processes) {
+			std::vector<pid_t> child_pids;
 
-				for (int j = 0; j < num_processes && i + j < cmp_parameters.size(); ++j) {
-					pid_t pid = fork();
+			for (int j = 0; j < num_processes && i + j < cmp_parameters.size(); ++j) {
+				pid_t pid = fork();
 
-					if (pid == 0) {  // Child process
-						run_single_parameter_set(cmp_parameters[i + j]);
-						exit(0);
-					} else if (pid < 0) {  // Fork failed
-						std::cerr << "Fork failed" << std::endl;
-						exit(1);
-					} else {  // Parent process
-						child_pids.push_back(pid);
-					}
+				if (pid == 0) {  // Child process
+					run_single_parameter_set(cmp_parameters[i + j]);
+					exit(0);
+				} else if (pid < 0) {  // Fork failed
+					std::cerr << "Fork failed" << std::endl;
+					exit(1);
+				} else {  // Parent process
+					child_pids.push_back(pid);
 				}
-
-				// Wait for all child processes in this batch to complete
-				for (pid_t pid : child_pids) {
-					int status;
-					waitpid(pid, &status, 0);
-					completed_tasks++;
-				}
-
-				// Print progress
-        		std::cout << "Completed " << completed_tasks << " out of " 
-                  << total_tasks << " tasks\r" << std::flush;
 			}
 
-		} // for
+			// Wait for all child processes in this batch to complete
+			for (pid_t pid : child_pids) {
+				int status;
+				waitpid(pid, &status, 0);
+				completed_tasks++;
+			}
+
+			// Print progress
+			std::cout << "Completed " << completed_tasks << " out of " 
+				<< total_tasks << " tasks\r" << std::flush;
+		}
 
 		std::cout << std::endl << "All tasks completed." << std::endl;
+
 	}
 	else if (mode == 3)
 	{
