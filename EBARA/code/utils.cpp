@@ -316,4 +316,15 @@ void clipLineSegment(double& x1, double& y1, double& x2, double& y2,
     // 對兩個端點應用截斷
     clipPoint(x1, y1);
     clipPoint(x2, y2);
+
+    if (x1 < minX) x1 = minX;
+    if (y1 < minY) y1 = minY;
+    if (x2 < minX) x2 = minX;
+    if (y2 < minY) y2 = minY;
+
+    if (x1 > maxX) x1 = maxX;
+    if (y1 > maxY) y1 = maxY;
+    if (x2 > maxX) x2 = maxX;
+    if (y2 > maxY) y2 = maxY;
+
 }
