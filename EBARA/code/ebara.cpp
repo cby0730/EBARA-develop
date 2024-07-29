@@ -960,4 +960,112 @@ PAP_distribution pixel2block_level(const PAP_distribution& mrr_pixel_level, cons
 	return mrr_block_level;
 
 }
+void whole_wafer_locus_simulation(Locus_coordinate &whole_wafer_coordinate,
+								  Diamonds_coordinate &wafer_points, CMP_Parameter machine_parameter, Wafer_spec wafer_spec)
+{
+	double wp, vs, cycle, E, cycle_time, r, R, e, sample_rate = 100, t_temp, wafer_speed;
 
+	// �]�w�p�ɾ�
+	auto start_time = std::chrono::high_resolution_clock::now();
+
+	vs = machine_parameter.vs;
+	cycle = machine_parameter.cycle;
+	E = 25; // dresser���߲��ʶZ��
+	cycle_time = E * 2 / vs;
+	wp = rpm2rad(machine_parameter.np);
+	wafer_speed = rpm2rad(wafer_spec.rotation_speed);
+	std::vector<double> tmpx, tmpy;
+
+	std::vector<double> rho, theta;
+	rho = wafer_points.rho;
+	theta = wafer_points.theta;
+
+	for (int i = 0; i < wafer_points.x.size(); i++)
+	{
+		r = std::sqrt(std::pow(rho[i] * std::cos(theta[i]), 2) + std::pow(rho[i] * std::sin(theta[i]), 2));
+		// wafer reference point to the center of the wafer
+		tmpx.clear();
+		tmpy.clear();
+		t_temp = 0;
+		for (int j = 0; j < cycle; j++)
+		{
+
+			for (double t = t_temp; t < cycle_time * (j + 1); t = t + 1 / sample_rate)
+			{
+				R = wafer_spec.location; // wafer center to the pad center
+				// consider pad speed(wp) and wafer speed to calculate coordinate with R, r and theta.
+				tmpx.push_back(R * std::cos(-wp * t) + r * cos(theta[i] - wafer_speed * t));
+				tmpy.push_back(R * std::sin(-wp * t) + r * sin(theta[i] - wafer_speed * t));
+			}
+			t_temp = cycle_time * (j + 1);
+		}
+		whole_wafer_coordinate.x.push_back(tmpx);
+		whole_wafer_coordinate.y.push_back(tmpy);
+	}
+
+	auto end_time = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+
+	//std::cout << "Time taken by the Whole Wafer Locus Simulation: " << duration.count() << " milliseconds" << std::endl;
+}
+PAP_distribution whole_wafer_mrr_calculation(Locus_coordinate &wafer_coordinate, Image_setup &image_info,
+								 PAP_distribution &pap_block_level, Diamonds_coordinate &wafer_points, Wafer_spec wafer_spec)
+{
+	int x, y;
+	int row = image_info.img_size / 2, col = image_info.img_size / 2;
+	int wafer_size = wafer_spec.size;
+
+	int intersection = 0, count = 0;
+	double angle = 0, distance = 0, mrr_value = 0;
+
+	PAP_distribution whole_wafer_mrr(image_info.img_size / image_info.block_size);
+
+	for (int i = 0; i < wafer_coordinate.x.size(); i++)
+	{
+		intersection = 0;
+		count = 0;
+		angle = 0.0;
+		distance = 0.0;
+		mrr_value = 0.0;
+
+		for (int j = 0; j < wafer_coordinate.x[0].size(); j++)
+		{
+			x = wafer_coordinate.x[i][j] + row;
+			y = -wafer_coordinate.y[i][j] + col;
+			if ( x < 0 || x >= image_info.img_size || y < 0 || y >= image_info.img_size) {
+				continue;
+			}
+			else {
+				intersection += pap_block_level.get_intersection(y / 2, x / 2);
+				angle += pap_block_level.get_angle(y / 2, x / 2);
+				distance += pap_block_level.get_distance(y / 2, x / 2);
+				mrr_value += pap_block_level.get_mrr(y / 2, x / 2);
+			}
+			count += 1;
+		} // end for
+
+		// convert wafer reference points [-14.5, -14.5]~[15, 15] to [0, 0]~[29, 29] (square wafer as an example)
+		whole_wafer_mrr.set_intersection(
+			int(wafer_points.x[i] + wafer_size), 
+			int(-wafer_points.y[i] + wafer_size),
+			intersection
+		);
+		whole_wafer_mrr.set_angle(
+			int(wafer_points.x[i] + wafer_size), 
+			int(-wafer_points.y[i] + wafer_size), 
+			(angle / count)
+		);
+		whole_wafer_mrr.set_distance(
+			int(wafer_points.x[i] + wafer_size), 
+			int(-wafer_points.y[i] + wafer_size), 
+			distance
+		);
+		whole_wafer_mrr.set_mrr(
+			int(wafer_points.x[i] + wafer_size), 
+			int(-wafer_points.y[i] + wafer_size), 
+			mrr_value
+		);
+	}
+
+	return whole_wafer_mrr;
+}

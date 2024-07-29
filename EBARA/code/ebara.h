@@ -40,4 +40,7 @@ void multi_thread_intersection_and_angle(const PixelLineSegments& pixelData, PAP
 void PAP_calculation(PAP_distribution& mrr_pixel_level);
 PAP_distribution pixel2block_level(const PAP_distribution& mrr_pixel_level, const Image_setup& image_info);
 
+void whole_wafer_locus_simulation(Locus_coordinate &whole_wafer_coordinate, Diamonds_coordinate &wafer_points, CMP_Parameter machine_parameter, Wafer_spec wafer_spec);
+PAP_distribution whole_wafer_mrr_calculation(Locus_coordinate &wafer_coordinate, Image_setup &image_info, PAP_distribution &pap_block_level, Diamonds_coordinate &wafer_points, Wafer_spec wafer_spec);
+
 #endif // !ebara

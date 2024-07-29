@@ -15,25 +15,30 @@ Path File_Path;
 Wafer_spec wafer_info;
 Image_setup image_info;
 
-void saveCSV_and_img(const PAP_distribution& mrr_block_level)
+void saveCSV_and_img(const PAP_distribution& pap_block_level, const PAP_distribution& mrr_block_level)
 {
 	//std::cout << "1. Store data into csv" << std::endl;
-	saveArray2DToCSV(mrr_block_level.get_intersection_array(), File_Path.save_path + "intersection_" + File_Path.save_name + ".csv");
-	saveArray2DToCSV(mrr_block_level.get_angle_array(), File_Path.save_path + "angle_" + File_Path.save_name + ".csv");
-	saveArray2DToCSV(mrr_block_level.get_distance_array(), File_Path.save_path + "distance_" + File_Path.save_name + ".csv");
-	saveArray2DToCSV(mrr_block_level.get_mrr_array(), File_Path.save_path + "mrr_" + File_Path.save_name + ".csv");
+	saveArray2DToCSV(pap_block_level.get_intersection_array(), File_Path.save_path + "intersection_" + File_Path.save_name + ".csv");
+	saveArray2DToCSV(pap_block_level.get_angle_array(), File_Path.save_path + "angle_" + File_Path.save_name + ".csv");
+	saveArray2DToCSV(pap_block_level.get_distance_array(), File_Path.save_path + "distance_" + File_Path.save_name + ".csv");
+	saveArray2DToCSV(pap_block_level.get_mrr_array(), File_Path.save_path + "PAP_" + File_Path.save_name + ".csv");
+
+	saveArray2DToCSV(mrr_block_level.get_mrr_array(), File_Path.save_path + "MRR_" + File_Path.save_name + ".csv");
 
 	cv::Mat result;
 
 	//std::cout << "2. Save image" << std::endl;
-	result = color_map(mrr_block_level.get_mrr_array(), image_info, 0, 0, true);
-	cv::imwrite(File_Path.save_path + "mrr_" + File_Path.save_name + ".png", result);
-	result = color_map(mrr_block_level.get_distance_array(), image_info, 0, 0, true);
+	result = color_map(pap_block_level.get_mrr_array(), image_info, 0, 0, true);
+	cv::imwrite(File_Path.save_path + "PAP_" + File_Path.save_name + ".png", result);
+	result = color_map(pap_block_level.get_distance_array(), image_info, 0, 0, true);
 	cv::imwrite(File_Path.save_path + "distance_" + File_Path.save_name + ".png", result);
-	result = color_map(mrr_block_level.get_angle_array(), image_info, 0, 0, true);
+	result = color_map(pap_block_level.get_angle_array(), image_info, 0, 0, true);
 	cv::imwrite(File_Path.save_path + "angle_" + File_Path.save_name + ".png", result);
-	result = color_map(mrr_block_level.get_intersection_array(), image_info, 0, 0, true);
+	result = color_map(pap_block_level.get_intersection_array(), image_info, 0, 0, true);
 	cv::imwrite(File_Path.save_path + "intersection_" + File_Path.save_name + ".png", result);
+
+	result = color_map(mrr_block_level.get_mrr_array(), image_info, 0, 0, true);
+	cv::imwrite(File_Path.save_path + "MRR_" + File_Path.save_name + ".png", result);
 }
 
 void run_single_parameter_set(const std::vector<double>& param)
@@ -63,35 +68,39 @@ void run_single_parameter_set(const std::vector<double>& param)
 	//std::cout << "\nConvert vector to pointer array" << std::endl;
 	PixelLineSegments pixelData = convert_array4d_to_pixelData(line_coordinate); // convert vector to pointer array
 
-	PAP_distribution mrr_pixel_level(SIZE);
+	PAP_distribution pap_pixel_level(SIZE);
 
 	//std::cout << "\nTrajectory distance" << std::endl;
-	std::thread t1 (multi_thread_trajectory_distance, std::ref(pixelData), std::ref(mrr_pixel_level));
+	std::thread t1 (multi_thread_trajectory_distance, std::ref(pixelData), std::ref(pap_pixel_level));
 
 	//std::cout << "\nIntersection and angle" << std::endl;
-	std::thread t2(multi_thread_intersection_and_angle, std::ref(pixelData), std::ref(mrr_pixel_level));
+	std::thread t2(multi_thread_intersection_and_angle, std::ref(pixelData), std::ref(pap_pixel_level));
 
 	t1.join();
 	t2.join();
 
 	//std::cout << "\nPAP calculation" << std::endl;
-	PAP_calculation(mrr_pixel_level);
+	PAP_calculation(pap_pixel_level);
 	
 	//std::cout << "\nPixel to block level" << std::endl;
-	PAP_distribution mrr_block_level = pixel2block_level(mrr_pixel_level, image_info);
+	PAP_distribution pap_block_level = pixel2block_level(pap_pixel_level, image_info);
+
+	whole_wafer_locus_simulation(wafer_coordiante, wafer_points, machine_parameters, wafer_info);
+
+	PAP_distribution mrr_block_level = whole_wafer_mrr_calculation(wafer_coordiante, image_info, pap_block_level, wafer_points, wafer_info);
 
 	//std::cout << "\nStore data into csv and image: " << std::endl;
-	saveCSV_and_img(mrr_block_level);
+	saveCSV_and_img(pap_block_level, mrr_block_level);
 
 	auto end = std::chrono::high_resolution_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
 
-	//std::cout << "Time taken by the whole process: " << elapsed.count() << " milliseconds" << std::endl;
+	// std::cout << "Time taken by the whole process: " << elapsed.count() << " milliseconds" << std::endl;
 }
 
 void run(int mode, std::string csv_file_name)
 {
-	int MRR_mode = 2, num_processes = 60;
+	int MRR_mode = 2, num_processes = 20;
 	if (mode == 0)
 	{
 		// test new function or certain parameter
@@ -105,16 +114,16 @@ void run(int mode, std::string csv_file_name)
 		std::vector<std::string> file_names;
 		std::cout << "Run mode 2: for whole wafer" << std::endl;
 		std::vector<std::vector<double>> cmp_parameters{  //ps=pad speed,ds=dresser speed,dms=dresser moving speed,cycle
-			//{30, 60, 10, 2},
-			{20,0,10,2},{20,10,10,2},{20,20,10,2},{20,30,10,2},{20,40,10,2},{20,50,10,2},{20,60,10,2},{20,70,10,2},{20,80,10,2},{20,90,10,2},{20,100,10,2},
-			{30,0,10,2},{30,10,10,2},{30,20,10,2},{30,30,10,2},{30,40,10,2},{30,50,10,2},{30,60,10,2},{30,70,10,2},{30,80,10,2},{30,90,10,2},{30,100,10,2},
-			{40,0,10,2},{40,10,10,2},{40,20,10,2},{40,30,10,2},{40,40,10,2},{40,50,10,2},{40,60,10,2},{40,70,10,2},{40,80,10,2},{40,90,10,2},{40,100,10,2},
-			{50,0,10,2},{50,10,10,2},{50,20,10,2},{50,30,10,2},{50,40,10,2},{50,50,10,2},{50,60,10,2},{50,70,10,2},{50,80,10,2},{50,90,10,2},{50,100,10,2},
-			{60,0,10,2},{60,10,10,2},{60,20,10,2},{60,30,10,2},{60,40,10,2},{60,50,10,2},{60,60,10,2},{60,70,10,2},{60,80,10,2},{60,90,10,2},{60,100,10,2},
-			{70,0,10,2},{70,10,10,2},{70,20,10,2},{70,30,10,2},{70,40,10,2},{70,50,10,2},{70,60,10,2},{70,70,10,2},{70,80,10,2},{70,90,10,2},{70,100,10,2},
-			{80,0,10,2},{80,10,10,2},{80,20,10,2},{80,30,10,2},{80,40,10,2},{80,50,10,2},{80,60,10,2},{80,70,10,2},{80,80,10,2},{80,90,10,2},{80,100,10,2},
-			{90,0,10,2},{90,10,10,2},{90,20,10,2},{90,30,10,2},{90,40,10,2},{90,50,10,2},{90,60,10,2},{90,70,10,2},{90,80,10,2},{90,90,10,2},{90,100,10,2},
-			{100,0,10,2},{100,10,10,2},{100,20,10,2},{100,30,10,2},{100,40,10,2},{100,50,10,2},{100,60,10,2},{100,70,10,2},{100,80,10,2},{100,90,10,2},{100,100,10,2},
+			{30, 30, 10, 2},
+			//{20,0,10,2},{20,10,10,2},{20,20,10,2},{20,30,10,2},{20,40,10,2},{20,50,10,2},{20,60,10,2},{20,70,10,2},{20,80,10,2},{20,90,10,2},{20,100,10,2},
+			//{30,0,10,2},{30,10,10,2},{30,20,10,2},{30,30,10,2},{30,40,10,2},{30,50,10,2},{30,60,10,2},{30,70,10,2},{30,80,10,2},{30,90,10,2},{30,100,10,2},
+			//{40,0,10,2},{40,10,10,2},{40,20,10,2},{40,30,10,2},{40,40,10,2},{40,50,10,2},{40,60,10,2},{40,70,10,2},{40,80,10,2},{40,90,10,2},{40,100,10,2},
+			//{50,0,10,2},{50,10,10,2},{50,20,10,2},{50,30,10,2},{50,40,10,2},{50,50,10,2},{50,60,10,2},{50,70,10,2},{50,80,10,2},{50,90,10,2},{50,100,10,2},
+			//{60,0,10,2},{60,10,10,2},{60,20,10,2},{60,30,10,2},{60,40,10,2},{60,50,10,2},{60,60,10,2},{60,70,10,2},{60,80,10,2},{60,90,10,2},{60,100,10,2},
+			//{70,0,10,2},{70,10,10,2},{70,20,10,2},{70,30,10,2},{70,40,10,2},{70,50,10,2},{70,60,10,2},{70,70,10,2},{70,80,10,2},{70,90,10,2},{70,100,10,2},
+			//{80,0,10,2},{80,10,10,2},{80,20,10,2},{80,30,10,2},{80,40,10,2},{80,50,10,2},{80,60,10,2},{80,70,10,2},{80,80,10,2},{80,90,10,2},{80,100,10,2},
+			//{90,0,10,2},{90,10,10,2},{90,20,10,2},{90,30,10,2},{90,40,10,2},{90,50,10,2},{90,60,10,2},{90,70,10,2},{90,80,10,2},{90,90,10,2},{90,100,10,2},
+			//{100,0,10,2},{100,10,10,2},{100,20,10,2},{100,30,10,2},{100,40,10,2},{100,50,10,2},{100,60,10,2},{100,70,10,2},{100,80,10,2},{100,90,10,2},{100,100,10,2},
 		};
 
 		int total_tasks = cmp_parameters.size();
@@ -150,7 +159,7 @@ void run(int mode, std::string csv_file_name)
 		}
 
 		std::cout << std::endl << "All tasks completed." << std::endl;
-
+	
 	}
 	else if (mode == 3)
 	{
@@ -181,7 +190,15 @@ int main()
 	// set up file path
 	File_Path.diamond_path = "../diamond/" + std::to_string(image_info.diamond_size) + ".csv";
 	File_Path.save_path = "../save/" + std::to_string(image_info.img_size) + "mm_D" + std::to_string(image_info.diamond_size) + "_mathamatical/";
-	File_Path.wafer_path = "../wafer_points/circle.csv";
+	if (wafer_info.size == 50) {
+		File_Path.wafer_path = "../wafer_points/circle.csv";
+	} else if (wafer_info.size == 15) {
+		File_Path.wafer_path = "../wafer_points/square.csv";
+	} else {
+		std::cerr << "wafer size error" << std::endl;
+		File_Path.wafer_path = "";
+		throw std::runtime_error("Invalid wafer size");
+	}
 	create_dir(File_Path.save_path);
 
 	if (diamonds_coordinate.x.empty() | diamonds_coordinate.y.empty())
