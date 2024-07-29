@@ -15,36 +15,11 @@ Path File_Path;
 Wafer_spec wafer_info;
 Image_setup image_info;
 
-void saveCSV_and_img(const PAP_distribution& pap_block_level, const PAP_distribution& mrr_block_level)
-{
-	//std::cout << "1. Store data into csv" << std::endl;
-	saveArray2DToCSV(pap_block_level.get_intersection_array(), File_Path.save_path + "intersection_" + File_Path.save_name + ".csv");
-	saveArray2DToCSV(pap_block_level.get_angle_array(), File_Path.save_path + "angle_" + File_Path.save_name + ".csv");
-	saveArray2DToCSV(pap_block_level.get_distance_array(), File_Path.save_path + "distance_" + File_Path.save_name + ".csv");
-	saveArray2DToCSV(pap_block_level.get_mrr_array(), File_Path.save_path + "PAP_" + File_Path.save_name + ".csv");
-
-	saveArray2DToCSV(mrr_block_level.get_mrr_array(), File_Path.save_path + "MRR_" + File_Path.save_name + ".csv");
-
-	cv::Mat result;
-
-	//std::cout << "2. Save image" << std::endl;
-	result = color_map(pap_block_level.get_mrr_array(), image_info, 0, 0, true);
-	cv::imwrite(File_Path.save_path + "PAP_" + File_Path.save_name + ".png", result);
-	result = color_map(pap_block_level.get_distance_array(), image_info, 0, 0, true);
-	cv::imwrite(File_Path.save_path + "distance_" + File_Path.save_name + ".png", result);
-	result = color_map(pap_block_level.get_angle_array(), image_info, 0, 0, true);
-	cv::imwrite(File_Path.save_path + "angle_" + File_Path.save_name + ".png", result);
-	result = color_map(pap_block_level.get_intersection_array(), image_info, 0, 0, true);
-	cv::imwrite(File_Path.save_path + "intersection_" + File_Path.save_name + ".png", result);
-
-	result = color_map(mrr_block_level.get_mrr_array(), image_info, 0, 0, true);
-	cv::imwrite(File_Path.save_path + "MRR_" + File_Path.save_name + ".png", result);
-}
-
-void run_single_parameter_set(const std::vector<double>& param)
+void run_single_parameter_set_mode2(const std::vector<double>& param)
 {
 	Locus_coordinate locus_coordinate, wafer_coordiante;
 	std::vector<std::vector<double>> line_coordinate[SIZE][SIZE];
+	cv::Mat result;
 
 	// set up parameters
 	CMP_Parameter machine_parameters{ param[0], param[1] ,param[2], param[3] };
@@ -55,42 +30,94 @@ void run_single_parameter_set(const std::vector<double>& param)
 	set_filename_by_parameters(param, File_Path);
 
 	// generate locus of the dresser on pad
-	//std::cout << "\nLocusSimulation" << std::endl;
 	LocusSimulation(locus_coordinate, diamonds_coordinate, machine_parameters);
 	// show_locus(locus_coordinate, image_info, machine_parameters.np, (File_Path.save_path + "locus_" + File_Path.save_name));
 
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	//line_coordinate
-	//std::cout << "\nGet all line coordinate" << std::endl;
 	get_all_line_coordinate(locus_coordinate, image_info, line_coordinate);
 	
-	//std::cout << "\nConvert vector to pointer array" << std::endl;
 	PixelLineSegments pixelData = convert_array4d_to_pixelData(line_coordinate); // convert vector to pointer array
 
+	// ================================================pap calculation================================================
 	PAP_distribution pap_pixel_level(SIZE);
 
-	//std::cout << "\nTrajectory distance" << std::endl;
-	std::thread t1 (multi_thread_trajectory_distance, std::ref(pixelData), std::ref(pap_pixel_level));
-
-	//std::cout << "\nIntersection and angle" << std::endl;
+	std::thread t1(multi_thread_trajectory_distance, std::ref(pixelData), std::ref(pap_pixel_level));
 	std::thread t2(multi_thread_intersection_and_angle, std::ref(pixelData), std::ref(pap_pixel_level));
-
 	t1.join();
 	t2.join();
 
-	//std::cout << "\nPAP calculation" << std::endl;
 	PAP_calculation(pap_pixel_level);
-	
-	//std::cout << "\nPixel to block level" << std::endl;
 	PAP_distribution pap_block_level = pixel2block_level(pap_pixel_level, image_info);
+	
+	// save the result to csv and image
+	saveArray2DToCSV(pap_block_level.get_mrr_array(), File_Path.save_path + "PAP_" + File_Path.save_name + ".csv");
+	result = color_map(pap_block_level.get_mrr_array(), image_info, 0, 0, true);
+	cv::imwrite(File_Path.save_path + "PAP_" + File_Path.save_name + ".png", result);
 
+	// ================================================whole wafer================================================
 	whole_wafer_locus_simulation(wafer_coordiante, wafer_points, machine_parameters, wafer_info);
-
 	PAP_distribution mrr_block_level = whole_wafer_mrr_calculation(wafer_coordiante, image_info, pap_block_level, wafer_points, wafer_info);
+	
+	// save the result to csv and image
+	saveArray2DToCSV(mrr_block_level.get_mrr_array(), File_Path.save_path + "MRR_" + File_Path.save_name + ".csv");
+	result = color_map(mrr_block_level.get_mrr_array(), image_info, 0, 0, true);
+	cv::imwrite(File_Path.save_path + "MRR_" + File_Path.save_name + ".png", result);
 
-	//std::cout << "\nStore data into csv and image: " << std::endl;
-	saveCSV_and_img(pap_block_level, mrr_block_level);
+	auto end = std::chrono::high_resolution_clock::now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+
+	// std::cout << "Time taken by the whole process: " << elapsed.count() << " milliseconds" << std::endl;
+}
+
+void run_single_parameter_set_mode3(const std::vector<double>& param)
+{
+	Locus_coordinate locus_coordinate, wafer_coordiante;
+	std::vector<std::vector<double>> line_coordinate[SIZE][SIZE];
+	cv::Mat result;
+	// fill 0 to filename. For example 000001.csv or 000001.jpg
+	std::string filename = set_filename(param[0], 6);
+
+	// set up parameters
+	CMP_Parameter machine_parameters{ param[1], param[2] ,param[3], param[4] };
+	// machine_parameters.print_parameter();
+
+	// generate locus of the dresser on pad
+	LocusSimulation(locus_coordinate, diamonds_coordinate, machine_parameters);
+	// show_locus(locus_coordinate, image_info, machine_parameters.np, (File_Path.save_path + "locus_" + File_Path.save_name));
+
+	auto begin = std::chrono::high_resolution_clock::now();
+
+	//line_coordinate
+	get_all_line_coordinate(locus_coordinate, image_info, line_coordinate);
+	
+	PixelLineSegments pixelData = convert_array4d_to_pixelData(line_coordinate); // convert vector to pointer array
+
+	// ================================================pap calculation================================================
+	PAP_distribution pap_pixel_level(SIZE);
+
+	std::thread t1(multi_thread_trajectory_distance, std::ref(pixelData), std::ref(pap_pixel_level));
+	std::thread t2(multi_thread_intersection_and_angle, std::ref(pixelData), std::ref(pap_pixel_level));
+	t1.join();
+	t2.join();
+
+	PAP_calculation(pap_pixel_level);
+	PAP_distribution pap_block_level = pixel2block_level(pap_pixel_level, image_info);
+	
+	// save the result to csv and image
+	saveArray2DToCSV(pap_block_level.get_mrr_array(), File_Path.PAP_path + filename + ".csv");
+	result = color_map(pap_block_level.get_mrr_array(), image_info, 0, 0, true);
+	cv::imwrite(File_Path.PAP_path + filename + ".png", result);
+
+	// ================================================whole wafer================================================
+	whole_wafer_locus_simulation(wafer_coordiante, wafer_points, machine_parameters, wafer_info);
+	PAP_distribution mrr_block_level = whole_wafer_mrr_calculation(wafer_coordiante, image_info, pap_block_level, wafer_points, wafer_info);
+	
+	// save the result to csv and image
+	saveArray2DToCSV(mrr_block_level.get_mrr_array(), File_Path.MRR_path + filename + ".csv");
+	result = color_map(mrr_block_level.get_mrr_array(), image_info, 0, 0, true);
+	cv::imwrite(File_Path.MRR_path + filename + ".png", result);
 
 	auto end = std::chrono::high_resolution_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
@@ -136,7 +163,7 @@ void run(int mode, std::string csv_file_name)
 				pid_t pid = fork();
 
 				if (pid == 0) {  // Child process
-					run_single_parameter_set(cmp_parameters[i + j]);
+					run_single_parameter_set_mode2(cmp_parameters[i + j]);
 					exit(0);
 				} else if (pid < 0) {  // Fork failed
 					std::cerr << "Fork failed" << std::endl;
@@ -163,7 +190,63 @@ void run(int mode, std::string csv_file_name)
 	}
 	else if (mode == 3)
 	{
-		// generate data for MRR distribution
+		std::vector<std::string> csv_files;
+		getFiles("../param_split/", csv_files);
+
+		for (auto &csv_file : csv_files)
+		{
+			// execute only the specified csv file
+			if (csv_file != csv_file_name)
+				continue;
+
+			// train.csv -> save_dir/train/
+			File_Path.save_path = File_Path.save_path + csv_file.substr(0, csv_file.length() - 4);
+			create_dir(File_Path.save_path);
+			// create save_dir/train/PAP_distribution
+			File_Path.PAP_path = File_Path.save_path + "/PAP_distribution/";
+			create_dir(File_Path.PAP_path);
+			// create save_dir/train/Wafer_distribution
+			File_Path.MRR_path = File_Path.save_path + "/MRR_distribution/";
+			create_dir(File_Path.MRR_path);
+
+			std::vector<std::vector<double>> machine_parameters;
+			machine_parameters = readCSV("../param_split/" + csv_file);
+
+			int total_tasks = machine_parameters.size();
+			int completed_tasks = 0;
+
+			for (size_t i = 0; i < machine_parameters.size(); i += num_processes) {
+				std::vector<pid_t> child_pids;
+
+				for (int j = 0; j < num_processes && i + j < machine_parameters.size(); ++j) {
+					pid_t pid = fork();
+
+					if (pid == 0) {  // Child process
+						run_single_parameter_set_mode3(machine_parameters[i + j]);
+						exit(0);
+					} else if (pid < 0) {  // Fork failed
+						std::cerr << "Fork failed" << std::endl;
+						exit(1);
+					} else {  // Parent process
+						child_pids.push_back(pid);
+					}
+				}
+
+				// Wait for all child processes in this batch to complete
+				for (pid_t pid : child_pids) {
+					int status;
+					waitpid(pid, &status, 0);
+					completed_tasks++;
+				}
+
+				// Print progress
+				std::cout << "Completed " << completed_tasks << " out of " 
+					<< total_tasks << " tasks\r" << std::flush;
+			}
+
+			std::cout << std::endl << "All tasks completed." << std::endl;
+			
+		}
 	}
 	else
 	{
@@ -219,7 +302,7 @@ int main()
 	// 1 for generate data for PAP distribution
 	// 2 for test wafer MRR distribution
 	// 3 for generate data for MRR distribution
-	int mode = 2; 
+	int mode = 3; 
 	std::string csv_file_name = "test_time.csv";
 	run(mode, csv_file_name);
 
