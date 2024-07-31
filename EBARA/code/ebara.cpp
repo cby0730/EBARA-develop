@@ -9,6 +9,12 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 //set_filename
+/**
+ * @brief Sets the filename of a given Path object based on the provided machine parameters.
+ *
+ * @param machine_parameters A vector of machine parameters.
+ * @param path The Path object whose save_name will be set.
+ */
 void set_filename_by_parameters(std::vector<double>machine_parameters, Path& path)
 {
 	std::stringstream int2string;
@@ -20,6 +26,15 @@ void set_filename_by_parameters(std::vector<double>machine_parameters, Path& pat
 	path.save_name = int2string.str();
 }
 //set filename 1.csv -> 000001.csv
+/**
+ * @brief Sets the filename with padding.
+ * 
+ * This function takes an original filename and a padding size as input and returns a string with the filename padded with leading zeros.
+ * 
+ * @param original_filename The original filename to be padded.
+ * @param padding_size The desired size of the padded filename.
+ * @return The padded filename as a string.
+ */
 std::string set_filename(int original_filename, int padding_size) {
 
 	std::string filename = std::to_string(original_filename);
@@ -28,19 +43,25 @@ std::string set_filename(int original_filename, int padding_size) {
 	return filename;
 }
 //locus
+/**
+ * @brief Simulates the locus of diamonds on a CMP machine.
+ * 
+ * @param locus_coordinate The output parameter that stores the x and y coordinates of the locus.
+ * @param diamonds_coordinate The input parameter that contains the rho and theta coordinates of the diamonds.
+ * @param machine_parameter The input parameter that contains the machine parameters.
+ */
 void LocusSimulation(Locus_coordinate& locus_coordinate, Diamonds_coordinate& diamonds_coordinate, CMP_Parameter machine_parameter)
 {
 	double wp, wd, vs, cycle, E, D, dressing_time, cycle_time, r, R, e, sample_rate = 100, t_temp;
 	int ttime, tmp_ttime = 0, theta_size;
 
-	// �]�w�p�ɾ�
 	auto start_time = std::chrono::high_resolution_clock::now();
 
 	vs = machine_parameter.vs;
 	cycle = machine_parameter.cycle;
 	e = 0;
-	E = 25;//dresser���߲��ʶZ��
-	D = 50;//dresser���߰_�l��m D+E���̻��Z��
+	E = 25; //dresser moving range
+	D = 50; //dresser center position
 	cycle_time = E * 2 / vs;
 	dressing_time = cycle * cycle_time;
 
@@ -49,17 +70,15 @@ void LocusSimulation(Locus_coordinate& locus_coordinate, Diamonds_coordinate& di
 	theta = diamonds_coordinate.theta;
 	wp = rpm2rad(machine_parameter.np);
 	wd = rpm2rad(machine_parameter.nd);
-	std::vector<double>tmpx(cycle_time * 100 * cycle), tmpy(cycle_time * 100 * cycle);
+	std::vector<double> tmpx(cycle_time * 100 * cycle), tmpy(cycle_time * 100 * cycle);
 
-	// FIX: add reserve for std::vector
-	//tmpx.reserve(cycle_time * 100 * cycle);
-	//tmpy.reserve(cycle_time * 100 * cycle);
+	// reserve memory for locus_coordinate
 	locus_coordinate.x.reserve(diamonds_coordinate.x.size());
 	locus_coordinate.y.reserve(diamonds_coordinate.x.size());
 
 	for (int i = 0; i < diamonds_coordinate.x.size(); i++)
 	{
-		r = sqrt(pow(rho[i] * cos(theta[i]), 2) + pow(rho[i] * sin(theta[i]), 2)); //diamond��dresser���ߪ�����
+		r = sqrt(pow(rho[i] * cos(theta[i]), 2) + pow(rho[i] * sin(theta[i]), 2)); // diamond to dresser center distance
 		tmpx.clear();
 		tmpy.clear();
 		e = 0;
@@ -69,13 +88,13 @@ void LocusSimulation(Locus_coordinate& locus_coordinate, Diamonds_coordinate& di
 
 			for (double t = t_temp; t < cycle_time * (j + 1); t = t + 1 / sample_rate)
 			{
-				R = D + e; //R:�ثedresser������pad���ߪ��Z��   r:diamond��dresser���ߪ��Z��
+				R = D + e; // R: dresser center to the pad center
 				tmpx.push_back(R * cos(-wp * t) + r * cos(theta[i] - wd * t));
 				tmpy.push_back(R * sin(-wp * t) + r * sin(theta[i] - wd * t));
-				if (t < cycle_time * j + cycle_time / 2)
-					e += vs / sample_rate;
+				if (t < cycle_time * j + cycle_time / 2) 
+					e += vs / sample_rate; // first half cycle is moving to the left, 50mm to 75mm
 				else
-					e -= vs / sample_rate;
+					e -= vs / sample_rate; // second half cycle is moving to the right, 75mm back to 50mm
 			}
 			t_temp = cycle_time * (j + 1);
 		}
@@ -89,6 +108,14 @@ void LocusSimulation(Locus_coordinate& locus_coordinate, Diamonds_coordinate& di
 	//std::cout << "Time taken by the LocusSimulation: " << duration.count() << " milliseconds" << std::endl;
 
 }
+/**
+ * @brief create the animation of locus coordinates on a video and saves it as a video file(MP4).
+ * 
+ * @param locus_coordinate The locus coordinates to be displayed.
+ * @param image_setup The setup parameters for the image.
+ * @param pad_speed The speed of the pad.
+ * @param save_path The path to save the video file.
+ */
 void show_locus(Locus_coordinate& locus_coordinate, Image_setup image_setup, int pad_speed, const std::string& save_path)
 {
 	int center = image_setup.img_size / 2;
@@ -107,7 +134,7 @@ void show_locus(Locus_coordinate& locus_coordinate, Image_setup image_setup, int
 		LineColor[i] = cv::Scalar(rng.uniform(50, 250), rng.uniform(50, 250), rng.uniform(50, 250));
 	}
 
-	// �Ыض�α���
+	// mask
 	cv::Mat mask = cv::Mat::zeros(cv::Size(center * 2, center * 2), src.type());
 	cv::circle(mask, cv::Point(center, center), center*1.005, cv::Scalar(255, 255, 255), -1);
 
@@ -123,24 +150,23 @@ void show_locus(Locus_coordinate& locus_coordinate, Image_setup image_setup, int
 	{
 		for (int i = 0; i < locus_coordinate.x.size(); ++i)
 		{
-			//�̭쥻locus �|�@������e�짹
+			// draw diamond locus
 			line(src, cv::Point(locus_coordinate.x[i][j] + row, -locus_coordinate.y[i][j] + col), cv::Point(locus_coordinate.x[i][j + 1] + row,
 				-locus_coordinate.y[i][j + 1] + col), LineColor[i], 1, cv::LINE_AA);
 		}
 
-		// �N�������Ψ�Ϲ��W
+		// mask
 		src.setTo(cv::Scalar(0, 0, 0), mask == 0);
 
-		double angle = j * angle_per_frame; // �ھڴV�ƭp����ਤ��
+		// rotate angle
+		double angle = j * angle_per_frame;
 		cv::Mat rot_mat = cv::getRotationMatrix2D(cv::Point(center, center), angle, 1.0);
 
-		// ����Ϲ�
+		// rotate the image
 		cv::Mat rotated;
 		cv::warpAffine(src, rotated, rot_mat, src.size());
 
 		video.write(rotated);
-		//cv::waitKey(1);
-		//cv::imshow("src", src);
 	}
 	
 	video.release();
@@ -965,12 +991,11 @@ void whole_wafer_locus_simulation(Locus_coordinate &whole_wafer_coordinate,
 {
 	double wp, vs, cycle, E, cycle_time, r, R, e, sample_rate = 100, t_temp, wafer_speed;
 
-	// �]�w�p�ɾ�
 	auto start_time = std::chrono::high_resolution_clock::now();
 
 	vs = machine_parameter.vs;
 	cycle = machine_parameter.cycle;
-	E = 25; // dresser���߲��ʶZ��
+	E = 25; // dresser 
 	cycle_time = E * 2 / vs;
 	wp = rpm2rad(machine_parameter.np);
 	wafer_speed = rpm2rad(wafer_spec.rotation_speed);

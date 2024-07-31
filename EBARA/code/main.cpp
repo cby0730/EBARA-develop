@@ -125,7 +125,7 @@ void run_single_parameter_set_mode3(const std::vector<double>& param)
 	// std::cout << "Time taken by the whole process: " << elapsed.count() << " milliseconds" << std::endl;
 }
 
-void run(int mode, std::string csv_file_name)
+void run(int mode, std::string param_dir)
 {
 	int MRR_mode = 2, num_processes = 20;
 	if (mode == 0)
@@ -191,26 +191,27 @@ void run(int mode, std::string csv_file_name)
 	else if (mode == 3)
 	{
 		std::vector<std::string> csv_files;
-		getFiles("../param_split/", csv_files);
+		getFiles("../" + param_dir + "/", csv_files);
 
 		for (auto &csv_file : csv_files)
 		{
-			// execute only the specified csv file
-			if (csv_file != csv_file_name)
-				continue;
 
-			// train.csv -> save_dir/train/
-			File_Path.save_path = File_Path.save_path + csv_file.substr(0, csv_file.length() - 4);
-			create_dir(File_Path.save_path);
 			// create save_dir/train/PAP_distribution
-			File_Path.PAP_path = File_Path.save_path + "/PAP_distribution/";
+			File_Path.PAP_path = File_Path.save_path + "PAP_distribution/";
 			create_dir(File_Path.PAP_path);
+			// train.csv -> save_dir/train/PAP_distribution/train/
+			File_Path.PAP_path = File_Path.PAP_path + csv_file.substr(0, csv_file.length() - 4) + "/";
+			create_dir(File_Path.PAP_path);
+
 			// create save_dir/train/Wafer_distribution
-			File_Path.MRR_path = File_Path.save_path + "/MRR_distribution/";
+			File_Path.MRR_path = File_Path.save_path + "MRR_distribution/";
+			create_dir(File_Path.MRR_path);
+			// train.csv -> save_dir/train/MRR_distribution/train/
+			File_Path.MRR_path = File_Path.MRR_path + csv_file.substr(0, csv_file.length() - 4) + "/";
 			create_dir(File_Path.MRR_path);
 
 			std::vector<std::vector<double>> machine_parameters;
-			machine_parameters = readCSV("../param_split/" + csv_file);
+			machine_parameters = readCSV("../" + param_dir + "/" + csv_file);
 
 			int total_tasks = machine_parameters.size();
 			int completed_tasks = 0;
@@ -270,9 +271,11 @@ int main()
 	wafer_info.rotation_speed = 100;
 	wafer_info.distance_from_center = 0;
 
+	std::string param_dir = "112k";
+
 	// set up file path
 	File_Path.diamond_path = "../diamond/" + std::to_string(image_info.diamond_size) + ".csv";
-	File_Path.save_path = "../save/" + std::to_string(image_info.img_size) + "mm_D" + std::to_string(image_info.diamond_size) + "_mathamatical/";
+	File_Path.save_path = "../save/" + std::to_string(image_info.img_size) + "mm_D" + std::to_string(image_info.diamond_size) + "_mathamatical_" + param_dir + "/";
 	if (wafer_info.size == 50) {
 		File_Path.wafer_path = "../wafer_points/circle.csv";
 	} else if (wafer_info.size == 15) {
@@ -303,8 +306,7 @@ int main()
 	// 2 for test wafer MRR distribution
 	// 3 for generate data for MRR distribution
 	int mode = 3; 
-	std::string csv_file_name = "test_time.csv";
-	run(mode, csv_file_name);
+	run(mode, param_dir);
 
 	auto end = std::chrono::high_resolution_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
